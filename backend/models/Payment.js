@@ -6,15 +6,19 @@ const serviceSchema = new mongoose.Schema({
     ref: "Vehicle",
     required: true,
   },
-  serviceFee: { type: Number, required: true },
+  serviceFee: {
+    type: Number,
+    required: true,
+    min: 0,
+  },
 });
 
 const paymentSchema = new mongoose.Schema({
   date: { type: Date, required: true, unique: true },
   cashPaid: { type: Number, default: 0 },
   services: [serviceSchema],
-  balance: { type: Number, default: 0 }, // positive = credit, negative = owed
-  waterUnits: { type: Number, default: 1 }, // multiplier for water usage
+  waterUnits: { type: Number, default: 1 },
+  balance: { type: Number, default: 0 },
 });
 
 module.exports = mongoose.model("Payment", paymentSchema);
