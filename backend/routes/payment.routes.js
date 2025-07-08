@@ -1,14 +1,12 @@
 const express = require("express");
 const router = express.Router();
 const paymentController = require("../controllers/payment.controller");
+const authMiddleware = require("../middleware/auth.middleware"); // your JWT middleware
 
-router.get("/", paymentController.getPayments);
-router.post("/", paymentController.addPayment);
-
-// Update payment by ID
-router.put("/:id", paymentController.updatePayment);
-
-// Delete payment by ID
-router.delete("/:id", paymentController.deletePayment);
+// Protect all routes
+router.get("/", authMiddleware, paymentController.getPayments);
+router.post("/", authMiddleware, paymentController.addPayment);
+router.put("/:id", authMiddleware, paymentController.updatePayment);
+router.delete("/:id", authMiddleware, paymentController.deletePayment);
 
 module.exports = router;
