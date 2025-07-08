@@ -3,6 +3,46 @@ const Vehicle = require("../models/Vehicle");
 
 const WATER_COST_PER_UNIT = 600;
 
+// Helper: recalculate balances starting from a given date
+async function recalcBalancesFrom(date) {
+  const startDate = new Date(date);
+  startDate.setHours(0, 0, 0, 0);
+
+  // Get previous day's payment balance
+  const prevDate = new Date(startDate.getTime());
+  prevDate.setDate(prevDate.getDate() - 1);
+  const prevStart = new Date(prevDate);
+  prevStart.setHours(0, 0, 0, 0);
+  const prevEnd = new Date(prevDate);
+  prevEnd.setHours(23, 59, 59, 999);
+
+  let prevPayment = await Payment.findOne({
+    date: { $gte: prevStart, $lte: prevEnd },
+  });
+
+  let prevBalance = prevPayment?.balance ?? 0;
+
+  // Get all payments from the date onward, sorted ascending
+  const payments = await Payment.find({ date: { $gte: startDate } }).sort({
+    date: 1,
+  });
+
+  for (const payment of payments) {
+    const totalServiceFees = payment.services.reduce(
+      (sum, s) => sum + (s.serviceFee || 0),
+      0
+    );
+
+    const totalPaid = payment.cashPaid + totalServiceFees;
+    payment.balance =
+      prevBalance + totalPaid - WATER_COST_PER_UNIT * payment.waterUnits;
+
+    await payment.save();
+
+    prevBalance = payment.balance; // carry forward
+  }
+}
+
 exports.addPayment = async (req, res) => {
   const { date, cashPaid = 0, services = [], waterUnits = 0 } = req.body;
 
@@ -13,7 +53,6 @@ exports.addPayment = async (req, res) => {
       .json({ message: "Water units must be zero or more" });
 
   try {
-    // Normalize date to EAT timezone start of day (fresh Date objects)
     const paymentDate = new Date(`${date}T00:00:00+03:00`);
 
     // Validate vehicles
@@ -26,14 +65,21 @@ exports.addPayment = async (req, res) => {
       }
     }
 
-    // Calculate previous day's date range in EAT
-    const prevDate = new Date(paymentDate.getTime());
+    const todayStart = new Date(paymentDate);
+    todayStart.setHours(0, 0, 0, 0);
+    const todayEnd = new Date(paymentDate);
+    todayEnd.setHours(23, 59, 59, 999);
+
+    let payment = await Payment.findOne({
+      date: { $gte: todayStart, $lte: todayEnd },
+    });
+
+    // Previous day's balance
+    const prevDate = new Date(todayStart);
     prevDate.setDate(prevDate.getDate() - 1);
-
-    const prevStart = new Date(prevDate.getTime());
+    const prevStart = new Date(prevDate);
     prevStart.setHours(0, 0, 0, 0);
-
-    const prevEnd = new Date(prevDate.getTime());
+    const prevEnd = new Date(prevDate);
     prevEnd.setHours(23, 59, 59, 999);
 
     const prevPayment = await Payment.findOne({
@@ -42,20 +88,7 @@ exports.addPayment = async (req, res) => {
 
     const previousBalance = prevPayment?.balance ?? 0;
 
-    // Today range for querying payments
-    const todayStart = new Date(paymentDate.getTime());
-    todayStart.setHours(0, 0, 0, 0);
-
-    const todayEnd = new Date(paymentDate.getTime());
-    todayEnd.setHours(23, 59, 59, 999);
-
-    // Find today's existing payment record
-    let payment = await Payment.findOne({
-      date: { $gte: todayStart, $lte: todayEnd },
-    });
-
     if (payment) {
-      // Update cashPaid and services by adding new data
       payment.cashPaid += cashPaid;
       payment.services.push(
         ...services.map((s) => ({
@@ -63,24 +96,17 @@ exports.addPayment = async (req, res) => {
           serviceFee: s.serviceFee,
         }))
       );
-
-      // Accumulate waterUnits by adding new units to existing
       payment.waterUnits += waterUnits;
 
-      // Recalculate total service fees for all services today
       const totalServiceFees = payment.services.reduce(
         (sum, s) => sum + (s.serviceFee || 0),
         0
       );
 
-      // Calculate total paid (cash + service fees)
       const totalPaid = payment.cashPaid + totalServiceFees;
-
-      // Update balance based on previous balance, total paid, minus water cost
       payment.balance =
         previousBalance + totalPaid - WATER_COST_PER_UNIT * payment.waterUnits;
     } else {
-      // New payment record
       const totalServiceFees = services.reduce(
         (sum, s) => sum + (s.serviceFee || 0),
         0
@@ -104,6 +130,11 @@ exports.addPayment = async (req, res) => {
 
     await payment.save();
 
+    // Recalculate balances for subsequent payments (if any)
+    await recalcBalancesFrom(
+      new Date(payment.date.getTime() + 24 * 3600 * 1000)
+    );
+
     res.status(201).json({
       payment,
       message:
@@ -113,6 +144,83 @@ exports.addPayment = async (req, res) => {
     });
   } catch (err) {
     console.error("Error adding payment:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+exports.updatePayment = async (req, res) => {
+  const paymentId = req.params.id;
+  const { cashPaid, services, waterUnits } = req.body;
+
+  try {
+    const payment = await Payment.findById(paymentId);
+    if (!payment) return res.status(404).json({ message: "Payment not found" });
+
+    // Validate vehicles if services provided
+    if (services) {
+      for (const svc of services) {
+        const vehicleExists = await Vehicle.findById(svc.vehicle);
+        if (!vehicleExists) {
+          return res
+            .status(400)
+            .json({ message: `Vehicle ${svc.vehicle} not found` });
+        }
+      }
+    }
+
+    // Update fields if provided
+    if (cashPaid !== undefined) payment.cashPaid = cashPaid;
+    if (services !== undefined)
+      payment.services = services.map((s) => ({
+        vehicle: s.vehicle,
+        serviceFee: s.serviceFee,
+      }));
+    if (waterUnits !== undefined) {
+      if (waterUnits < 0)
+        return res
+          .status(400)
+          .json({ message: "Water units must be zero or more" });
+      payment.waterUnits = waterUnits;
+    }
+
+    await payment.save();
+
+    // Recalculate balances from this payment date
+    await recalcBalancesFrom(payment.date);
+
+    // Reload updated payment with new balance
+    const updatedPayment = await Payment.findById(paymentId);
+
+    res.json({
+      payment: updatedPayment,
+      message:
+        updatedPayment.balance >= 0
+          ? `Payment updated. Credit balance: KES ${updatedPayment.balance}`
+          : `Payment updated. Outstanding balance: KES ${-updatedPayment.balance}`,
+    });
+  } catch (err) {
+    console.error("Error updating payment:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+exports.deletePayment = async (req, res) => {
+  const paymentId = req.params.id;
+
+  try {
+    const payment = await Payment.findById(paymentId);
+    if (!payment) return res.status(404).json({ message: "Payment not found" });
+
+    const paymentDate = payment.date;
+
+    await payment.deleteOne();
+
+    // Recalculate balances for subsequent payments
+    await recalcBalancesFrom(paymentDate);
+
+    res.json({ message: "Payment deleted and balances updated" });
+  } catch (err) {
+    console.error("Error deleting payment:", err);
     res.status(500).json({ message: "Server error" });
   }
 };
