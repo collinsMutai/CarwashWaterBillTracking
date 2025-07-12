@@ -13,21 +13,10 @@ const secondDb = mongoose.createConnection(process.env.SECOND_MONGO_URI, {
 
 const WeeklySummary = secondDb.model("WeeklySummary", weeklySummarySchema);
 
-const hasRunToday = new Set();
-
 function startWeeklySummaryCron() {
   cron.schedule(
     "0 22 * * 1", // Every Monday at 10:00 PM
     async () => {
-      const today = new Date().toDateString();
-
-      if (hasRunToday.has(today)) {
-        console.log(`⚠️ Cron already ran today (${today}), skipping save.`);
-        return;
-      }
-
-      hasRunToday.add(today);
-
       console.log("📆 Running weekly summary cron job...");
 
       try {
@@ -42,6 +31,19 @@ function startWeeklySummaryCron() {
             `🚗 ${s.registration} | ${s.description} | Washes: ${s.numberOfWashes} | Total Fee: KES ${s.totalServiceFee}`
           );
         });
+
+        // Check if a summary for this week already exists in DB
+        const existing = await WeeklySummary.findOne({
+          weekStart: summary.weekStart,
+          weekEnd: summary.weekEnd,
+        });
+
+        if (existing) {
+          console.log(
+            `⚠️ Weekly summary for ${summary.weekStart.toDateString()} - ${summary.weekEnd.toDateString()} already saved. Skipping save.`
+          );
+          return;
+        }
 
         // Save summary to second DB
         const saved = await WeeklySummary.create(summary);

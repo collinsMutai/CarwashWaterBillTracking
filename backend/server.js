@@ -52,13 +52,13 @@ app.get("/", (req, res) => {
   res.send("Car Wash Water Bill Backend Running");
 });
 
+// Import WeeklySummary model and secondDb connection as before...
+
 app.listen(PORT, async () => {
   console.log(`🚀 Server running on port ${PORT}`);
 
-  // Start the weekly cron job (runs every Monday 10 PM)
   startWeeklySummaryCron();
 
-  // Manually run weekly summary and save on startup for testing
   try {
     console.log("📆 Manually running weekly summary on startup...");
 
@@ -67,23 +67,31 @@ app.listen(PORT, async () => {
     console.log(
       `📊 Weekly Summary: ${summary.weekStart.toDateString()} - ${summary.weekEnd.toDateString()}`
     );
+
     summary.services.forEach((s) => {
       console.log(
         `🚗 ${s.registration} | ${s.description} | Washes: ${s.numberOfWashes} | Total Fee: KES ${s.totalServiceFee}`
       );
     });
 
-    // Save to second DB
-    const savedSummary = await WeeklySummary.create(summary);
-    console.log(
-      `✅ Manual weekly summary saved to DB with id: ${savedSummary._id}`
-    );
+    // Check for duplicate before saving
+    const existing = await WeeklySummary.findOne({
+      weekStart: summary.weekStart,
+      weekEnd: summary.weekEnd,
+    });
+
+    if (existing) {
+      console.log(
+        `⚠️ Weekly summary for ${summary.weekStart.toDateString()} - ${summary.weekEnd.toDateString()} already saved. Skipping manual save.`
+      );
+    } else {
+      const savedSummary = await WeeklySummary.create(summary);
+      console.log(`✅ Manual weekly summary saved to DB with id: ${savedSummary._id}`);
+    }
 
     console.log("✅ Manual weekly summary complete on startup.");
   } catch (err) {
-    console.error(
-      "❌ Error running summary on startup:",
-      err.stack || err.message
-    );
+    console.error("❌ Error running summary on startup:", err.stack || err.message);
   }
 });
+
