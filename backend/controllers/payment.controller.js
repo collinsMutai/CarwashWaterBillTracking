@@ -224,51 +224,58 @@ exports.getPayments = async (req, res) => {
   }
 };
 
-// ✅ Weekly service summary by vehicle
-exports.getWeeklyServices = async (req, res) => {
-  try {
-    const { startDate } = req.query;
-    const startOfWeek = startDate
-      ? moment(startDate).startOf("isoWeek").toDate()
-      : moment().startOf("isoWeek").toDate();
+// === NEW HELPER function for summary ===
+async function getWeeklyServiceSummaryData(startDate) {
+  const startOfWeek = startDate
+    ? moment(startDate).startOf("isoWeek").toDate()
+    : moment().startOf("isoWeek").toDate();
 
-    const endOfWeek = moment(startOfWeek).endOf("isoWeek").toDate();
+  const endOfWeek = moment(startOfWeek).endOf("isoWeek").toDate();
 
-    const payments = await Payment.find({
-      date: { $gte: startOfWeek, $lte: endOfWeek },
-    }).populate("services.vehicle");
+  const payments = await Payment.find({
+    date: { $gte: startOfWeek, $lte: endOfWeek },
+  }).populate("services.vehicle");
 
-    const vehicleMap = new Map();
+  const vehicleMap = new Map();
 
-    for (const payment of payments) {
-      for (const service of payment.services) {
-        const vehicle = service.vehicle;
-        if (!vehicle) continue;
+  for (const payment of payments) {
+    for (const service of payment.services) {
+      const vehicle = service.vehicle;
+      if (!vehicle) continue;
 
-        const key = vehicle._id.toString();
+      const key = vehicle._id.toString();
 
-        if (!vehicleMap.has(key)) {
-          vehicleMap.set(key, {
-            vehicleId: vehicle._id,
-            registration: vehicle.registration,
-            description: vehicle.description,
-            serviceFeePerWash: service.serviceFee,
-            numberOfWashes: 1,
-            totalServiceFee: service.serviceFee,
-          });
-        } else {
-          const vData = vehicleMap.get(key);
-          vData.numberOfWashes += 1;
-          vData.totalServiceFee += service.serviceFee;
-        }
+      if (!vehicleMap.has(key)) {
+        vehicleMap.set(key, {
+          vehicleId: vehicle._id,
+          registration: vehicle.registration,
+          description: vehicle.description,
+          serviceFeePerWash: service.serviceFee,
+          numberOfWashes: 1,
+          totalServiceFee: service.serviceFee,
+        });
+      } else {
+        const vData = vehicleMap.get(key);
+        vData.numberOfWashes += 1;
+        vData.totalServiceFee += service.serviceFee;
       }
     }
+  }
 
-    res.json({
-      weekStart: startOfWeek,
-      weekEnd: endOfWeek,
-      services: Array.from(vehicleMap.values()),
-    });
+  return {
+    weekStart: startOfWeek,
+    weekEnd: endOfWeek,
+    services: Array.from(vehicleMap.values()),
+  };
+}
+
+exports.getWeeklyServiceSummaryData = getWeeklyServiceSummaryData;
+
+// Express controller uses the helper
+exports.getWeeklyServices = async (req, res) => {
+  try {
+    const summary = await getWeeklyServiceSummaryData(req.query.startDate);
+    res.json(summary);
   } catch (err) {
     console.error("Error fetching weekly services:", err);
     res.status(500).json({ message: "Server error" });
