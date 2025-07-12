@@ -8,5 +8,11 @@ router.get("/", authMiddleware, paymentController.getPayments);
 router.post("/", authMiddleware, paymentController.addPayment);
 router.put("/:id", authMiddleware, paymentController.updatePayment);
 router.delete("/:id", authMiddleware, paymentController.deletePayment);
+router.get(
+  "/weekly-services",
+  authMiddleware,
+  paymentController.getWeeklyServices
+);
+
 
 module.exports = router;

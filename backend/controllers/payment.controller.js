@@ -1,5 +1,6 @@
 const Payment = require("../models/Payment");
 const Vehicle = require("../models/Vehicle");
+const moment = require("moment");
 
 const WATER_COST_PER_UNIT = 600;
 
@@ -8,7 +9,6 @@ async function recalcBalancesFrom(date) {
   const startDate = new Date(date);
   startDate.setHours(0, 0, 0, 0);
 
-  // Get previous day's payment balance
   const prevDate = new Date(startDate.getTime());
   prevDate.setDate(prevDate.getDate() - 1);
   const prevStart = new Date(prevDate);
@@ -22,7 +22,6 @@ async function recalcBalancesFrom(date) {
 
   let prevBalance = prevPayment?.balance ?? 0;
 
-  // Get all payments from the date onward, sorted ascending
   const payments = await Payment.find({ date: { $gte: startDate } }).sort({
     date: 1,
   });
@@ -38,8 +37,7 @@ async function recalcBalancesFrom(date) {
       prevBalance + totalPaid - WATER_COST_PER_UNIT * payment.waterUnits;
 
     await payment.save();
-
-    prevBalance = payment.balance; // carry forward
+    prevBalance = payment.balance;
   }
 }
 
@@ -55,7 +53,6 @@ exports.addPayment = async (req, res) => {
   try {
     const paymentDate = new Date(`${date}T00:00:00+03:00`);
 
-    // Validate vehicles
     for (const svc of services) {
       const vehicleExists = await Vehicle.findById(svc.vehicle);
       if (!vehicleExists) {
@@ -74,7 +71,6 @@ exports.addPayment = async (req, res) => {
       date: { $gte: todayStart, $lte: todayEnd },
     });
 
-    // Previous day's balance
     const prevDate = new Date(todayStart);
     prevDate.setDate(prevDate.getDate() - 1);
     const prevStart = new Date(prevDate);
@@ -130,7 +126,6 @@ exports.addPayment = async (req, res) => {
 
     await payment.save();
 
-    // Recalculate balances for subsequent payments (if any)
     await recalcBalancesFrom(
       new Date(payment.date.getTime() + 24 * 3600 * 1000)
     );
@@ -156,7 +151,6 @@ exports.updatePayment = async (req, res) => {
     const payment = await Payment.findById(paymentId);
     if (!payment) return res.status(404).json({ message: "Payment not found" });
 
-    // Validate vehicles if services provided
     if (services) {
       for (const svc of services) {
         const vehicleExists = await Vehicle.findById(svc.vehicle);
@@ -168,7 +162,6 @@ exports.updatePayment = async (req, res) => {
       }
     }
 
-    // Update fields if provided
     if (cashPaid !== undefined) payment.cashPaid = cashPaid;
     if (services !== undefined)
       payment.services = services.map((s) => ({
@@ -184,11 +177,8 @@ exports.updatePayment = async (req, res) => {
     }
 
     await payment.save();
-
-    // Recalculate balances from this payment date
     await recalcBalancesFrom(payment.date);
 
-    // Reload updated payment with new balance
     const updatedPayment = await Payment.findById(paymentId);
 
     res.json({
@@ -212,10 +202,7 @@ exports.deletePayment = async (req, res) => {
     if (!payment) return res.status(404).json({ message: "Payment not found" });
 
     const paymentDate = payment.date;
-
     await payment.deleteOne();
-
-    // Recalculate balances for subsequent payments
     await recalcBalancesFrom(paymentDate);
 
     res.json({ message: "Payment deleted and balances updated" });
@@ -233,6 +220,57 @@ exports.getPayments = async (req, res) => {
     res.json(payments);
   } catch (err) {
     console.error("Error fetching payments:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+// ✅ Weekly service summary by vehicle
+exports.getWeeklyServices = async (req, res) => {
+  try {
+    const { startDate } = req.query;
+    const startOfWeek = startDate
+      ? moment(startDate).startOf("isoWeek").toDate()
+      : moment().startOf("isoWeek").toDate();
+
+    const endOfWeek = moment(startOfWeek).endOf("isoWeek").toDate();
+
+    const payments = await Payment.find({
+      date: { $gte: startOfWeek, $lte: endOfWeek },
+    }).populate("services.vehicle");
+
+    const vehicleMap = new Map();
+
+    for (const payment of payments) {
+      for (const service of payment.services) {
+        const vehicle = service.vehicle;
+        if (!vehicle) continue;
+
+        const key = vehicle._id.toString();
+
+        if (!vehicleMap.has(key)) {
+          vehicleMap.set(key, {
+            vehicleId: vehicle._id,
+            registration: vehicle.registration,
+            description: vehicle.description,
+            serviceFeePerWash: service.serviceFee,
+            numberOfWashes: 1,
+            totalServiceFee: service.serviceFee,
+          });
+        } else {
+          const vData = vehicleMap.get(key);
+          vData.numberOfWashes += 1;
+          vData.totalServiceFee += service.serviceFee;
+        }
+      }
+    }
+
+    res.json({
+      weekStart: startOfWeek,
+      weekEnd: endOfWeek,
+      services: Array.from(vehicleMap.values()),
+    });
+  } catch (err) {
+    console.error("Error fetching weekly services:", err);
     res.status(500).json({ message: "Server error" });
   }
 };
