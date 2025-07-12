@@ -14,7 +14,7 @@ exports.searchVehicles = async (req, res) => {
 };
 
 exports.addVehicle = async (req, res) => {
-  const { registration, description } = req.body;
+  const { registration, description, clientName } = req.body;
   if (!registration)
     return res.status(400).json({ message: "Registration required" });
 
@@ -23,7 +23,7 @@ exports.addVehicle = async (req, res) => {
     if (existing)
       return res.status(400).json({ message: "Vehicle already exists" });
 
-    const vehicle = new Vehicle({ registration, description });
+    const vehicle = new Vehicle({ registration, description, clientName });
     await vehicle.save();
     res.status(201).json(vehicle);
   } catch (err) {
@@ -31,3 +31,4 @@ exports.addVehicle = async (req, res) => {
     res.status(500).json({ message: "Server error" });
   }
 };
+

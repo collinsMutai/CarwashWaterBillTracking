@@ -3,6 +3,7 @@ const mongoose = require("mongoose");
 const weeklyServiceSchema = new mongoose.Schema({
   registration: String,
   description: String,
+  clientName: String, // <-- Add clientName here
   numberOfWashes: Number,
   totalServiceFee: Number,
 });

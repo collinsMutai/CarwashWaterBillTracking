@@ -250,6 +250,7 @@ async function getWeeklyServiceSummaryData(startDate) {
           vehicleId: vehicle._id,
           registration: vehicle.registration,
           description: vehicle.description,
+          clientName: vehicle.clientName || "",
           serviceFeePerWash: service.serviceFee,
           numberOfWashes: 1,
           totalServiceFee: service.serviceFee,
