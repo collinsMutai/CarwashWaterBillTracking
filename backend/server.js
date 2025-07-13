@@ -10,14 +10,12 @@ const paymentRoutes = require("./routes/payment.routes");
 const authMiddleware = require("./middleware/auth.middleware");
 
 const startWeeklySummaryCron = require("./weeklySummaryCron");
-const {
-  getWeeklyServiceSummaryData,
-} = require("./controllers/payment.controller");
 
 // Import mongoose and schema for second DB to save summary manually
 const mongooseSecondary = require("mongoose");
 const weeklySummarySchema = require("./models/WeeklySummary.model");
 
+// App and port
 const app = express();
 const PORT = process.env.PORT || 5000;
 
@@ -27,10 +25,10 @@ mongoose
     useNewUrlParser: true,
     useUnifiedTopology: true,
   })
-  .then(() => console.log("MongoDB connected"))
-  .catch((err) => console.error(err));
+  .then(() => console.log("✅ MongoDB connected"))
+  .catch((err) => console.error("❌ MongoDB connection error:", err));
 
-// Connect to second DB (for saving summary)
+// Connect to second DB (for saving weekly summaries)
 const secondDb = mongooseSecondary.createConnection(
   process.env.SECOND_MONGO_URI,
   {
@@ -38,60 +36,31 @@ const secondDb = mongooseSecondary.createConnection(
     useUnifiedTopology: true,
   }
 );
+secondDb.on("connected", () =>
+  console.log("✅ Second DB connected for summaries")
+);
+secondDb.on("error", (err) => console.error("❌ Second DB error:", err));
+
+// Attach WeeklySummary model
 const WeeklySummary = secondDb.model("WeeklySummary", weeklySummarySchema);
 
+// Middleware
 app.use(cors());
 app.use(express.json());
 
+// Routes
 app.use("/api/auth", authRoutes);
 app.use("/api/vehicles", authMiddleware, vehicleRoutes);
 app.use("/api/waterbills", authMiddleware, waterBillRoutes);
 app.use("/api/payments", authMiddleware, paymentRoutes);
 
+// Test route
 app.get("/", (req, res) => {
-  res.send("Car Wash Water Bill Backend Running");
+  res.send("🚿 Car Wash Water Bill Backend Running");
 });
 
-// Import WeeklySummary model and secondDb connection as before...
-
-app.listen(PORT, async () => {
+// Start server
+app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
-
-  startWeeklySummaryCron();
-
-  try {
-    console.log("📆 Manually running weekly summary on startup...");
-
-    const summary = await getWeeklyServiceSummaryData();
-
-    console.log(
-      `📊 Weekly Summary: ${summary.weekStart.toDateString()} - ${summary.weekEnd.toDateString()}`
-    );
-
-    summary.services.forEach((s) => {
-      console.log(
-        `🚗 ${s.registration} | ${s.description} | Washes: ${s.numberOfWashes} | Total Fee: KES ${s.totalServiceFee}`
-      );
-    });
-
-    // Check for duplicate before saving
-    const existing = await WeeklySummary.findOne({
-      weekStart: summary.weekStart,
-      weekEnd: summary.weekEnd,
-    });
-
-    if (existing) {
-      console.log(
-        `⚠️ Weekly summary for ${summary.weekStart.toDateString()} - ${summary.weekEnd.toDateString()} already saved. Skipping manual save.`
-      );
-    } else {
-      const savedSummary = await WeeklySummary.create(summary);
-      console.log(`✅ Manual weekly summary saved to DB with id: ${savedSummary._id}`);
-    }
-
-    console.log("✅ Manual weekly summary complete on startup.");
-  } catch (err) {
-    console.error("❌ Error running summary on startup:", err.stack || err.message);
-  }
+  startWeeklySummaryCron(); // Cron job runs weekly summary every Monday 10 PM
 });
-

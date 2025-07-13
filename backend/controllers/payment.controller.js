@@ -1,6 +1,13 @@
 const Payment = require("../models/Payment");
 const Vehicle = require("../models/Vehicle");
 const moment = require("moment");
+const mongoose = require("mongoose");
+const weeklySummarySchema = require("../models/WeeklySummary.model");
+
+// Reuse primary connection but switch DB context
+const secondDb = mongoose.connection.useDb("jupscarwash");
+const WeeklySummary = secondDb.model("WeeklySummary", weeklySummarySchema);
+
 
 const WATER_COST_PER_UNIT = 600;
 
@@ -279,6 +286,36 @@ exports.getWeeklyServices = async (req, res) => {
     res.json(summary);
   } catch (err) {
     console.error("Error fetching weekly services:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+
+exports.generateWeeklySummaryNow = async (req, res) => {
+  try {
+    const summary = await getWeeklyServiceSummaryData(req.query.startDate);
+
+    const existing = await WeeklySummary.findOne({
+      weekStart: summary.weekStart,
+      weekEnd: summary.weekEnd,
+    });
+
+    if (existing) {
+      return res.status(200).json({
+        message: `Weekly summary already exists for ${summary.weekStart.toDateString()} - ${summary.weekEnd.toDateString()}`,
+        alreadyExists: true,
+        summary: existing,
+      });
+    }
+
+    const savedSummary = await WeeklySummary.create(summary);
+
+    res.status(201).json({
+      message: `✅ Weekly summary generated and saved.`,
+      summary: savedSummary,
+    });
+  } catch (err) {
+    console.error("❌ Error generating summary:", err);
     res.status(500).json({ message: "Server error" });
   }
 };

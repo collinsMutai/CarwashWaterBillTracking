@@ -13,6 +13,10 @@ router.get(
   authMiddleware,
   paymentController.getWeeklyServices
 );
-
+router.post(
+  "/generate-weekly-summary",
+  authMiddleware,
+  paymentController.generateWeeklySummaryNow
+);
 
 module.exports = router;
