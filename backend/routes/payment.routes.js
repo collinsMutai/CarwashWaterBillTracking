@@ -18,5 +18,11 @@ router.post(
   authMiddleware,
   paymentController.generateWeeklySummaryNow
 );
+router.get(
+  "/weekly-invoice",
+  // authMiddleware,
+  paymentController.generateWeeklyInvoice
+);
+router.get("/weekly-invoice/pdf", paymentController.downloadWeeklyInvoicePdf);
 
 module.exports = router;

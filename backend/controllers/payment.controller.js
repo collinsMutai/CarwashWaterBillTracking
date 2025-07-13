@@ -3,6 +3,9 @@ const Vehicle = require("../models/Vehicle");
 const moment = require("moment");
 const mongoose = require("mongoose");
 const weeklySummarySchema = require("../models/WeeklySummary.model");
+const ejs = require("ejs");
+const puppeteer = require("puppeteer");
+const path = require("path");
 
 // Reuse primary connection but switch DB context
 const secondDb = mongoose.connection.useDb("jupscarwash");
@@ -317,5 +320,132 @@ exports.generateWeeklySummaryNow = async (req, res) => {
   } catch (err) {
     console.error("❌ Error generating summary:", err);
     res.status(500).json({ message: "Server error" });
+  }
+};
+
+
+// Helper: recalculate balances starting from a given date
+async function recalcBalancesFrom(date) {
+  const startDate = new Date(date);
+  startDate.setHours(0, 0, 0, 0);
+
+  const prevDate = new Date(startDate.getTime());
+  prevDate.setDate(prevDate.getDate() - 1);
+  const prevStart = new Date(prevDate);
+  prevStart.setHours(0, 0, 0, 0);
+  const prevEnd = new Date(prevDate);
+  prevEnd.setHours(23, 59, 59, 999);
+
+  let prevPayment = await Payment.findOne({
+    date: { $gte: prevStart, $lte: prevEnd },
+  });
+
+  let prevBalance = prevPayment?.balance ?? 0;
+
+  const payments = await Payment.find({ date: { $gte: startDate } }).sort({
+    date: 1,
+  });
+
+  for (const payment of payments) {
+    const totalServiceFees = payment.services.reduce(
+      (sum, s) => sum + (s.serviceFee || 0),
+      0
+    );
+
+    const totalPaid = payment.cashPaid + totalServiceFees;
+    payment.balance =
+      prevBalance + totalPaid - WATER_COST_PER_UNIT * payment.waterUnits;
+
+    await payment.save();
+    prevBalance = payment.balance;
+  }
+}
+
+// NEW: Generate a weekly invoice listing daily payments with details
+exports.generateWeeklyInvoice = async (req, res) => {
+  try {
+    const inputDate = req.query.startDate
+      ? new Date(req.query.startDate)
+      : new Date();
+
+    const startOfWeek = moment(inputDate).startOf("isoWeek").toDate();
+    const endOfWeek = moment(startOfWeek).endOf("isoWeek").toDate();
+
+    // Get all payments within the week, populate vehicle details inside services
+    const payments = await Payment.find({
+      date: { $gte: startOfWeek, $lte: endOfWeek },
+    })
+      .populate("services.vehicle")
+      .sort({ date: 1 });
+
+    // Format the invoice data
+    const invoice = payments.map((payment) => ({
+      date: moment(payment.date).format("YYYY-MM-DD"),
+      waterUnits: payment.waterUnits,
+      services: payment.services.map((service) => ({
+        vehicleId: service.vehicle?._id || null,
+        registration: service.vehicle?.registration || "Unknown",
+        clientName: service.vehicle?.clientName || "Unknown",
+        description: service.vehicle?.description || "",
+        serviceFee: service.serviceFee,
+      })),
+    }));
+
+    res.json({
+      weekStart: moment(startOfWeek).format("YYYY-MM-DD"),
+      weekEnd: moment(endOfWeek).format("YYYY-MM-DD"),
+      invoice,
+    });
+  } catch (err) {
+    console.error("Error generating weekly invoice:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+async function generateInvoicePdf(summaryData) {
+  const templateData = {
+    ...summaryData,
+    waterCostPerUnit: 600,
+  };
+
+  const html = await ejs.renderFile(
+    path.join(__dirname, "../views/invoice.ejs"),
+    templateData,
+    { async: true }
+  );
+
+  const browser = await puppeteer.launch();
+  const page = await browser.newPage();
+
+  await page.setContent(html, { waitUntil: "networkidle0" });
+
+  const pdfBuffer = await page.pdf({
+    format: "A4",
+    printBackground: true,
+    margin: { top: "20px", bottom: "20px", left: "20px", right: "20px" },
+  });
+
+  await browser.close();
+  return pdfBuffer;
+}
+
+exports.downloadWeeklyInvoicePdf = async (req, res) => {
+  try {
+    const summary = await getWeeklyServiceSummaryData(req.query.startDate);
+
+    const pdfBuffer = await generateInvoicePdf(summary);
+
+    res.set({
+      "Content-Type": "application/pdf",
+      "Content-Disposition": `attachment; filename=weekly-invoice-${moment(
+        summary.weekStart
+      ).format("YYYY-MM-DD")}.pdf`,
+      "Content-Length": pdfBuffer.length,
+    });
+
+    res.send(pdfBuffer);
+  } catch (err) {
+    console.error("❌ Error generating PDF invoice:", err);
+    res.status(500).json({ message: "Server error generating PDF" });
   }
 };
