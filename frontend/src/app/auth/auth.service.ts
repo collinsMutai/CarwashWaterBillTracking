@@ -29,10 +29,15 @@ export class AuthService {
     );
   }
 
+  API_BASE_URL = 'https://carwashwaterbilltracking.onrender.com';
+
   login(username: string, password: string): Promise<void> {
     return new Promise((resolve, reject) => {
       this.http
-        .post<{ token: string }>('/api/auth/login', { username, password })
+        .post<{ token: string }>(`${this.API_BASE_URL}/api/auth/login`, {
+          username,
+          password,
+        })
         .subscribe({
           next: (res) => {
             if (typeof window !== 'undefined') {

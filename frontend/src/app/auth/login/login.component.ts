@@ -36,6 +36,11 @@ export class LoginComponent implements OnInit {
     this.authService
       .login(this.username, this.password)
       .then(() => {
+        console.log(
+          'After login: token in localStorage:',
+          localStorage.getItem('auth_token')
+        );
+
         this.router.navigate(['/dashboard']);
       })
       .catch((err) => {
