@@ -44,8 +44,12 @@ secondDb.on("error", (err) => console.error("❌ Second DB error:", err));
 // Attach WeeklySummary model
 const WeeklySummary = secondDb.model("WeeklySummary", weeklySummarySchema);
 
-// Middleware
-app.use(cors());
+// Middleware: Configure CORS to allow requests from your frontend only
+const corsOptions = {
+  origin: process.env.CORS_ORIGIN,
+  optionsSuccessStatus: 200,
+};
+app.use(cors(corsOptions));
 app.use(express.json());
 
 // Routes
