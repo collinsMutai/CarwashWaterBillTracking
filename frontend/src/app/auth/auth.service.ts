@@ -1,6 +1,7 @@
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { BehaviorSubject, Observable } from 'rxjs';
+import { Router } from '@angular/router'; // <-- Needed for navigation
 
 @Injectable({
   providedIn: 'root',
@@ -60,6 +61,9 @@ export class AuthService {
   }
 
   isLoggedIn(): boolean {
-    return this.loggedInSubject.value;
+    // ✅ Always read fresh from localStorage (important for AuthGuard)
+    return (
+      typeof window !== 'undefined' && !!localStorage.getItem(this.tokenKey)
+    );
   }
 }
