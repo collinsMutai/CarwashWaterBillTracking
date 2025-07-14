@@ -29,12 +29,12 @@ export default {
 ],
   entryPointToBrowserMapping: undefined,
   assets: {
-    'index.csr.html': {size: 23562, hash: '5520a36f6d95896fbb0b1f68d7902c1785b87884b0b04c16302c6c2fa80d5051', text: () => import('./assets-chunks/index_csr_html.mjs').then(m => m.default)},
-    'index.server.html': {size: 17136, hash: '7cae5fc00f8afacd7c6d4c58b85c422ac9c2388f1e994e8c06f771e75adbf48c', text: () => import('./assets-chunks/index_server_html.mjs').then(m => m.default)},
-    'vehicles/index.html': {size: 27264, hash: 'ccc3c7316a89c8b09c72fd3644c1a430c441ff587da2fe1fb139cf883b05382e', text: () => import('./assets-chunks/vehicles_index_html.mjs').then(m => m.default)},
-    'login/index.html': {size: 27264, hash: 'ccc3c7316a89c8b09c72fd3644c1a430c441ff587da2fe1fb139cf883b05382e', text: () => import('./assets-chunks/login_index_html.mjs').then(m => m.default)},
-    'index.html': {size: 27264, hash: 'ccc3c7316a89c8b09c72fd3644c1a430c441ff587da2fe1fb139cf883b05382e', text: () => import('./assets-chunks/index_html.mjs').then(m => m.default)},
-    'payments/index.html': {size: 27264, hash: 'ccc3c7316a89c8b09c72fd3644c1a430c441ff587da2fe1fb139cf883b05382e', text: () => import('./assets-chunks/payments_index_html.mjs').then(m => m.default)},
+    'index.csr.html': {size: 23562, hash: 'd6062a01a4b8e0a8c35aa7c1941c97aeb547799afa1222725a853a60327199fa', text: () => import('./assets-chunks/index_csr_html.mjs').then(m => m.default)},
+    'index.server.html': {size: 17136, hash: '5ddec92fcee989b6422c23dffbfe0ce2f3c3f48fd1f9328f694f40047c9d3388', text: () => import('./assets-chunks/index_server_html.mjs').then(m => m.default)},
+    'login/index.html': {size: 27264, hash: '07a5a8acacabbe1198eff95abb4e3e390110b38b1eff10facb90a5a2776c7017', text: () => import('./assets-chunks/login_index_html.mjs').then(m => m.default)},
+    'index.html': {size: 27264, hash: '07a5a8acacabbe1198eff95abb4e3e390110b38b1eff10facb90a5a2776c7017', text: () => import('./assets-chunks/index_html.mjs').then(m => m.default)},
+    'payments/index.html': {size: 27264, hash: '07a5a8acacabbe1198eff95abb4e3e390110b38b1eff10facb90a5a2776c7017', text: () => import('./assets-chunks/payments_index_html.mjs').then(m => m.default)},
+    'vehicles/index.html': {size: 27264, hash: '07a5a8acacabbe1198eff95abb4e3e390110b38b1eff10facb90a5a2776c7017', text: () => import('./assets-chunks/vehicles_index_html.mjs').then(m => m.default)},
     'styles-36AW6TKX.css': {size: 6979, hash: 'vY6tjD/ce7M', text: () => import('./assets-chunks/styles-36AW6TKX_css.mjs').then(m => m.default)}
   },
 };

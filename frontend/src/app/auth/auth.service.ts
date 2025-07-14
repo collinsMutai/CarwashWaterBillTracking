@@ -1,27 +1,17 @@
-import { Injectable, inject } from '@angular/core';
+import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { BehaviorSubject, Observable } from 'rxjs';
-import { Router } from '@angular/router'; // <-- Needed for navigation
+import { environment } from '../../environments/emvironment'; // <-- Import environment
 
 @Injectable({
   providedIn: 'root',
 })
 export class AuthService {
   private tokenKey = 'auth_token';
-
   private loggedInSubject = new BehaviorSubject<boolean>(this.hasToken());
   public isLoggedIn$: Observable<boolean> = this.loggedInSubject.asObservable();
 
   constructor(private http: HttpClient) {}
-
-  // ✅ Called once on app startup via APP_INITIALIZER
-  initAuth(): Promise<void> {
-    return new Promise((resolve) => {
-      const tokenExists = this.hasToken();
-      this.loggedInSubject.next(tokenExists); // sync observable state
-      resolve();
-    });
-  }
 
   private hasToken(): boolean {
     return (
@@ -29,12 +19,19 @@ export class AuthService {
     );
   }
 
-  API_BASE_URL = 'https://carwashwaterbilltracking.onrender.com';
+  // ✅ Called once on app startup via APP_INITIALIZER
+  initAuth(): Promise<void> {
+    return new Promise((resolve) => {
+      const tokenExists = this.hasToken();
+      this.loggedInSubject.next(tokenExists);
+      resolve();
+    });
+  }
 
   login(username: string, password: string): Promise<void> {
     return new Promise((resolve, reject) => {
       this.http
-        .post<{ token: string }>(`${this.API_BASE_URL}/api/auth/login`, {
+        .post<{ token: string }>(`${environment.apiUrl}/auth/login`, {
           username,
           password,
         })
@@ -66,7 +63,6 @@ export class AuthService {
   }
 
   isLoggedIn(): boolean {
-    // ✅ Always read fresh from localStorage (important for AuthGuard)
     return (
       typeof window !== 'undefined' && !!localStorage.getItem(this.tokenKey)
     );
