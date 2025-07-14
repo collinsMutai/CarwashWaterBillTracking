@@ -1,6 +1,6 @@
 {
   "/api": {
-    "target": "https://carwashwaterbilltracking-1.onrender.com",
+    "target": "https://carwashwaterbilltracking-backend.onrender.com",
     "secure": false,
     "changeOrigin": true,
     "logLevel": "debug"
