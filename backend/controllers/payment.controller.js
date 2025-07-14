@@ -235,16 +235,20 @@ exports.getPayments = async (req, res) => {
 };
 
 // === NEW HELPER function for summary ===
-async function getWeeklyServiceSummaryData(startDate) {
-  const startOfWeek = startDate
-    ? moment(startDate).startOf("isoWeek").toDate()
-    : moment().startOf("isoWeek").toDate();
+async function getWeeklyServiceSummaryData() {
+  // Get today's date (Monday)
+  const today = moment().startOf("isoWeek"); // This Monday 00:00
 
-  const endOfWeek = moment(startOfWeek).endOf("isoWeek").toDate();
+  // Get previous week's Monday and Sunday
+  const lastMonday = moment(today).subtract(1, "week").toDate(); // Last week's Monday 00:00
+  const lastSunday = moment(today).subtract(1, "day").endOf("day").toDate(); // Last week's Sunday 23:59:59
 
+  // Fetch payments from last Monday 00:00 to last Sunday 23:59:59
   const payments = await Payment.find({
-    date: { $gte: startOfWeek, $lte: endOfWeek },
+    date: { $gte: lastMonday, $lte: lastSunday },
   }).populate("services.vehicle");
+
+  // Your aggregation logic stays the same
 
   const vehicleMap = new Map();
 
@@ -274,11 +278,12 @@ async function getWeeklyServiceSummaryData(startDate) {
   }
 
   return {
-    weekStart: startOfWeek,
-    weekEnd: endOfWeek,
+    weekStart: lastMonday,
+    weekEnd: lastSunday,
     services: Array.from(vehicleMap.values()),
   };
 }
+
 
 exports.getWeeklyServiceSummaryData = getWeeklyServiceSummaryData;
 
