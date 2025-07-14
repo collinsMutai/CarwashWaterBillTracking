@@ -1,0 +1,10 @@
+<nav class="global-nav">
+    <a routerLink="/vehicles">Vehicles</a>
+    <a routerLink="/payments">Payments</a>
+    <a href="#" (click)="triggerSummary()">Run Weekly Summary</a>
+    <button (click)="downloadInvoicePdf()">Download Weekly Invoice</button>
+    <button (click)="logout()">Logout</button>
+  </nav>
+  
+  <router-outlet></router-outlet>
+  

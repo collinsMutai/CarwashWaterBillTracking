@@ -1,0 +1,111 @@
+<table mat-table [dataSource]="dataSource" class="mat-elevation-z8" multiTemplateDataRows>
+
+  <!-- Date Column -->
+  <ng-container matColumnDef="date">
+    <th mat-header-cell *matHeaderCellDef> Date </th>
+    <td mat-cell *matCellDef="let row"> {{ row.date | date: 'mediumDate' }} </td>
+  </ng-container>
+
+  <!-- Cash Paid Column -->
+  <ng-container matColumnDef="cashPaid">
+    <th mat-header-cell *matHeaderCellDef> Cash Paid </th>
+    <td mat-cell *matCellDef="let row"> {{ row.cashPaid }} </td>
+  </ng-container>
+
+  <!-- Water Units Column -->
+  <ng-container matColumnDef="waterUnits">
+    <th mat-header-cell *matHeaderCellDef> Water Units </th>
+    <td mat-cell *matCellDef="let row"> {{ row.waterUnits }} </td>
+  </ng-container>
+
+  <!-- Total Service Fee Column -->
+  <ng-container matColumnDef="serviceFee">
+    <th mat-header-cell *matHeaderCellDef> Total Service Fee </th>
+    <td mat-cell *matCellDef="let row">
+      {{ getTotalServiceFee(row.services) }}
+    </td>
+  </ng-container>
+
+  <!-- Vehicle Info Column -->
+  <ng-container matColumnDef="vehicleInfo">
+    <th mat-header-cell *matHeaderCellDef> Vehicles </th>
+    <td mat-cell *matCellDef="let row">
+      <div *ngIf="row.services.length; else noServices">
+        <div *ngFor="let s of row.services">
+          {{ s.vehicle?.registration }} — {{ s.vehicle?.description }}
+        </div>
+      </div>
+      <ng-template #noServices>No services</ng-template>
+    </td>
+  </ng-container>
+
+  <!-- Balance Column -->
+  <ng-container matColumnDef="balance">
+    <th mat-header-cell *matHeaderCellDef> Balance </th>
+    <td mat-cell *matCellDef="let row"> {{ row.balance }} </td>
+  </ng-container>
+
+  <!-- Actions Column -->
+  <ng-container matColumnDef="actions">
+    <th mat-header-cell *matHeaderCellDef> Actions </th>
+    <td mat-cell *matCellDef="let row">
+      <button mat-button color="primary" (click)="openEditDialog(row)">Edit</button>
+      <button mat-button color="warn" (click)="deletePayment(row._id)">Delete</button>
+    </td>
+  </ng-container>
+
+  <!-- Header and Row Definitions -->
+  <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+  <tr mat-row *matRowDef="let row; columns: displayedColumns"></tr>
+
+</table>
+
+<!-- Paginator -->
+<mat-paginator
+  [length]="dataSource.data.length"
+  [pageSize]="pageSize"
+  [pageSizeOptions]="[7, 14, 21]"
+  showFirstLastButtons>
+</mat-paginator>
+
+<!-- Edit Dialog Template -->
+<ng-template #editDialog>
+  <h2 mat-dialog-title>Edit Payment</h2>
+  <mat-dialog-content>
+    <mat-form-field appearance="fill" class="full-width">
+      <mat-label>Cash Paid</mat-label>
+      <input matInput type="number" [(ngModel)]="editData.cashPaid" />
+    </mat-form-field>
+
+    <mat-form-field appearance="fill" class="full-width">
+      <mat-label>Water Units</mat-label>
+      <input matInput type="number" [(ngModel)]="editData.waterUnits" />
+    </mat-form-field>
+
+    <h3>Services</h3>
+    <div *ngFor="let svc of editData.services; let i = index" class="service-row">
+      <mat-form-field appearance="fill" class="half-width">
+        <mat-label>Vehicle</mat-label>
+        <mat-select [(ngModel)]="svc.vehicle">
+          <mat-option *ngFor="let v of vehicles" [value]="v._id">
+            {{ v.registration }} — {{ v.description }}
+          </mat-option>
+        </mat-select>
+      </mat-form-field>
+
+      <mat-form-field appearance="fill" class="half-width">
+        <mat-label>Service Fee</mat-label>
+        <input matInput type="number" [(ngModel)]="svc.serviceFee" />
+      </mat-form-field>
+
+      <button mat-icon-button color="warn" (click)="removeService(i)">✕</button>
+    </div>
+
+    <button mat-stroked-button color="primary" (click)="addService()">+ Add Service</button>
+  </mat-dialog-content>
+
+  <mat-dialog-actions align="end">
+    <button mat-button mat-dialog-close>Cancel</button>
+    <button mat-raised-button color="primary" (click)="saveEdit()">Save</button>
+  </mat-dialog-actions>
+</ng-template>

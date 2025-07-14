@@ -1,0 +1,12 @@
+.service-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 8px;
+}
+.full-width {
+  width: 100%;
+}
+.half-width {
+  width: 100%;
+}

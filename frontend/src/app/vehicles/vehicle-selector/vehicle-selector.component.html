@@ -1,0 +1,23 @@
+<div class="selector">
+    <input
+      type="text"
+      [(ngModel)]="searchTerm"
+      (ngModelChange)="filterVehicles()"
+      placeholder="Search or enter new vehicle reg"
+    />
+  
+    <ul *ngIf="filtered.length">
+      <li *ngFor="let vehicle of filtered" (click)="selectVehicle(vehicle)">
+        {{ vehicle.registration }} - {{ vehicle.description }}
+      </li>
+    </ul>
+  
+    <button (click)="showNewForm = !showNewForm">+ Add New Vehicle</button>
+  
+    <div *ngIf="showNewForm" class="new-form">
+      <input type="text" placeholder="Registration" [(ngModel)]="newVehicle.registration" />
+      <input type="text" placeholder="Description" [(ngModel)]="newVehicle.description" />
+      <button (click)="addNewVehicle()">Save</button>
+    </div>
+  </div>
+  

@@ -1,0 +1,32 @@
+<div class="payment-container">
+  <h2>Record Daily Payment</h2>
+
+  <label>Date</label>
+  <input type="date" [(ngModel)]="today" />
+
+  <label>Water Units Supplied</label>
+  <input type="number" [(ngModel)]="waterUnits" min="0" />
+
+  <label>Payment Type</label>
+  <select [(ngModel)]="paymentType">
+    <option value="cash">Cash</option>
+    <option value="wash">By Washing Vehicle</option>
+  </select>
+
+  <div *ngIf="paymentType === 'cash'">
+    <label>Amount Paid (KES)</label>
+    <input type="number" [(ngModel)]="amountPaid" min="0" />
+  </div>
+
+  <div *ngIf="paymentType === 'wash'">
+    <label>Service Fee (KES)</label>
+    <input type="number" [(ngModel)]="waterCost" min="0" />
+    <app-vehicle-selector (vehicleSelected)="handleVehicleSelect($event)"></app-vehicle-selector>
+  </div>
+
+  <button (click)="submitPayment()" [disabled]="submitting">Submit Payment</button>
+
+  <p *ngIf="result">{{ result }}</p>
+</div>
+
+
