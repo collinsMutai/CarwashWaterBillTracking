@@ -15,7 +15,7 @@ const WeeklySummary = secondDb.model("WeeklySummary", weeklySummarySchema);
 
 function startWeeklySummaryCron() {
   cron.schedule(
-    "0 22 * * 1", // Every Monday at 10:00 PM
+    "35 22 * * 1", // Every Monday at 10:00 PM
     async () => {
       console.log("📆 Running weekly summary cron job...");
 
